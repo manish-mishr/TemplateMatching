@@ -120,7 +120,7 @@ SDoublePlane convolve_separable(const SDoublePlane &input, const SDoublePlane &r
   SDoublePlane output(input.rows(), input.cols());
 
   // Convolution code here
-  
+
   return output;
 }
 
@@ -129,6 +129,24 @@ SDoublePlane convolve_separable(const SDoublePlane &input, const SDoublePlane &r
 SDoublePlane convolve_general(const SDoublePlane &input, const SDoublePlane &filter)
 {
   SDoublePlane output(input.rows(), input.cols());
+
+  for(int i=0; i<input.rows();++i)
+  {
+	  for(int j=0;j<input.cols();++j)
+	  {
+		  int sum=0;
+		  for(int k=0;k<filter.rows();++k)
+		  {
+			  for(int l=0; l<filter.cols();++l)
+			  {
+				  if (i-k<0 || j-l<0)
+					  continue;
+				  sum+=input[i-k][j-l]*filter[k][l];
+			  }
+		  }
+		  output[i][j]= sum;
+	  }
+  }
 
   // Convolution code here
   
@@ -182,6 +200,7 @@ int main(int argc, char *argv[])
     for(int j=0; j<3; j++)
       mean_filter[i][j] = 1/9.0;
   SDoublePlane output_image = convolve_general(input_image, mean_filter);
+  SImageIO::write_png_file("mean_filtered.png",output_image,output_image,output_image);
 
   
   // randomly generate some detected symbols -- you'll want to replace this
