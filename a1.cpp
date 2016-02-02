@@ -134,14 +134,18 @@ SDoublePlane convolve_general(const SDoublePlane &input, const SDoublePlane &fil
   {
 	  for(int j=0;j<input.cols();++j)
 	  {
-		  int sum=0;
+		  double sum=0;
 		  for(int k=0;k<filter.rows();++k)
 		  {
 			  for(int l=0; l<filter.cols();++l)
 			  {
-				  if (i-k<0 || j-l<0)
-					  continue;
-				  sum+=input[i-k][j-l]*filter[k][l];
+				  int u = i-k;
+				  if(u<0 || u >=input.rows())
+					  u = i;
+				  int v = j-l;
+				  if(v<0 || v>input.cols())
+					  v = j;
+				  sum+=input[u][v]*filter[k][l];
 			  }
 		  }
 		  output[i][j]= sum;
@@ -200,7 +204,7 @@ int main(int argc, char *argv[])
     for(int j=0; j<3; j++)
       mean_filter[i][j] = 1/9.0;
   SDoublePlane output_image = convolve_general(input_image, mean_filter);
-  SImageIO::write_png_file("mean_filtered.png",output_image,output_image,output_image);
+  SImageIO::write_png_file("mean_filtered2.png",output_image,output_image,output_image);
 
   
   // randomly generate some detected symbols -- you'll want to replace this
