@@ -1,0 +1,1 @@
+test_line.png : 64*64, lines are 12,22,32,42,52
