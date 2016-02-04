@@ -113,15 +113,55 @@ void  write_detection_image(const string &filename, const vector<DetectedSymbol>
 // get you started -- feel free to add extra functions, change function
 // parameters, etc.
 
+void print(SDoublePlane img)
+{
+	  for(int i=0;i<img.rows();i++)
+	  {
+		  for(int j=0;j<img.cols();j++)
+		  {
+			  cout<<img[i][j]<<" ";
+		  }
+		  cout<<"\n";
+	  }
+	  cout<<"\n\n";
+}
+
 // Convolve an image with a separable convolution kernel
 //
 SDoublePlane convolve_separable(const SDoublePlane &input, const SDoublePlane &row_filter, const SDoublePlane &col_filter)
 {
-  SDoublePlane output(input.rows(), input.cols());
+  SDoublePlane output1(input.rows(), input.cols());
 
   // Convolution code here
+  for(int row = 0; row< input.rows(); ++row)
+  {
+	  for(int col=0; col<input.cols();++col)
+	  {
+		  double sum=0;
+		  for(int k = row_filter.cols()-1, u=col-row_filter.cols()/2; k>=0, u<=col+row_filter.cols()/2; --k, ++u)
+		  {
+			  sum += u>=0 && u<input.cols() ? input[row][u] * row_filter[0][k] : input[row][col]* row_filter[0][k];
+		  }
 
-  return output;
+		  output1[row][col] = sum;
+	  }
+  }
+
+  SDoublePlane output2(input.rows(), input.cols());
+  for(int col=0; col<input.cols(); ++col)
+  {
+	  for(int row=0; row<input.rows(); ++row)
+	  {
+		  double sum=0;
+		  for(int l = col_filter.rows()-1, v = row - col_filter.rows()/2; l>=0, v<=row+col_filter.rows()/2; --l, ++v)
+		  {
+			  sum += v>=0 && v<output1.rows()? output1[v][col]*col_filter[l][0]: output1[row][col]*col_filter[l][0];
+		  }
+
+		  output2[row][col] = sum;
+	  }
+  }
+  return output2;
 }
 
 // Convolve an image with a separable convolution kernel
@@ -135,17 +175,15 @@ SDoublePlane convolve_general(const SDoublePlane &input, const SDoublePlane &fil
 	  for(int j=0;j<input.cols();++j)
 	  {
 		  double sum=0;
-		  for(int k=0;k<filter.rows();++k)
+		  for(int k=filter.rows()-1, u=i-filter.rows()/2; k>=0, u<= i+filter.rows()/2; --k, ++u)
 		  {
-			  for(int l=0; l<filter.cols();++l)
+			  for(int l=filter.cols()-1, v=j-filter.cols()/2; l>=0, v<= j+filter.cols()/2; --l, ++v)
 			  {
-				  int u = i-k;
-				  if(u<0 || u >=input.rows())
-					  u = i;
-				  int v = j-l;
-				  if(v<0 || v>input.cols())
-					  v = j;
-				  sum+=input[u][v]*filter[k][l];
+				  int p = u, q = v;
+				  if(p<0 || p >=input.rows()) p = i;
+				  if(q<0 || q>input.cols()) q = j;
+
+				  sum+=input[p][q]*filter[k][l];
 			  }
 		  }
 		  output[i][j]= sum;
@@ -182,6 +220,28 @@ SDoublePlane find_edges(const SDoublePlane &input, double thresh=0)
   return output;
 }
 
+void test_colvolution()
+{
+	SDoublePlane img(5,5);
+	for(int i=1; i<4;i++)
+		for (int j=1;j<4;j++)
+			img[i][j]=16;
+	print(img);
+
+	SDoublePlane row_filter(1,3), col_filter(3,1),filter(3,3);
+	row_filter[0][0]=.25; row_filter[0][1]=.5; row_filter[0][2]=.25;
+	col_filter[0][0]=.25; col_filter[1][0]=.5; col_filter[2][0]=.25;
+	filter[0][0]=1/16.0; filter[0][1]=1/8.0; filter[0][2]=1/16.0;
+	filter[1][0]=1/8.0; filter[1][1]=1/4.0; filter[1][2]=1/8.0;
+	filter[2][0]=1/16.0; filter[2][1]=1/8.0; filter[2][2]=1/16.0;
+
+	SDoublePlane output = convolve_separable(img,row_filter,col_filter);
+	print(output);
+
+	SDoublePlane output2 = convolve_general(img,filter);
+	print(output2);
+
+}
 
 //
 // This main file just outputs a few test images. You'll want to change it to do 
@@ -204,9 +264,11 @@ int main(int argc, char *argv[])
     for(int j=0; j<3; j++)
       mean_filter[i][j] = 1/9.0;
   SDoublePlane output_image = convolve_general(input_image, mean_filter);
-  SImageIO::write_png_file("mean_filtered2.png",output_image,output_image,output_image);
+  SImageIO::write_png_file("mean_filtered.png",output_image,output_image,output_image);
 
-  
+  test_colvolution();
+
+
   // randomly generate some detected symbols -- you'll want to replace this
   //  with your symbol detection code obviously!
   vector<DetectedSymbol> symbols;
