@@ -126,8 +126,62 @@ void print(SDoublePlane img)
 	  cout<<"\n\n";
 }
 
+
 // Convolve an image with a separable convolution kernel
 //
+SDoublePlane convolve_separable_DP(const SDoublePlane &input, const SDoublePlane &row_filter, const SDoublePlane &col_filter)
+{
+  SDoublePlane output1(input.rows(), input.cols());
+
+  // Convolution code here
+  for(int row = 0; row< input.rows(); ++row)
+  {
+	  double sum = 0;
+	  for(int col=0; col<input.cols();++col)
+	  {
+		if (col == 0)
+		{
+			for(int k = row_filter.cols()-1, u=col-row_filter.cols()/2; k>=0, u<=col+row_filter.cols()/2; --k, ++u)
+			{
+				sum += u>=0 && u<input.cols() ? input[row][u] * row_filter[0][k] : input[row][col]* row_filter[0][k];
+			}
+		}
+		else
+		{
+			int u =  col-row_filter.cols()/2-1;
+			sum -=  row_filter[0][row_filter.cols()-1] * (u >= 0 ? input[row][u] : input[row][0]);
+			 u =  col+row_filter.cols()/2;
+			 sum += row_filter[0][0] * ( u < input.cols() ? input[row][u] : input[row][input.cols()-1]);
+		}
+		  output1[row][col] = sum;
+	  }
+  }
+
+  SDoublePlane output2(input.rows(), input.cols());
+  for(int col=0; col<input.cols(); ++col)
+  {
+	  double sum=0;
+	  for(int row=0; row<input.rows(); ++row)
+	  {
+		if (row == 0)
+		{
+			for(int l = col_filter.rows()-1, v = row - col_filter.rows()/2; l>=0, v<=row+col_filter.rows()/2; --l, ++v)
+			{
+				sum += v>=0 && v<output1.rows()? output1[v][col]*col_filter[l][0]: output1[row][col]*col_filter[l][0];
+			}
+		}
+		else
+		{
+			int v = row - col_filter.rows()/2-1;
+			sum -= col_filter[col_filter.rows()-1][0] * ( v >=0 ? output1[v][col] : output1[0][col]);
+			 v = row + col_filter.rows()/2;
+			sum += col_filter[0][0] * (v < output1.rows() ? output1[v][col] : output1[output1.rows()-1][col]);
+		}
+		  output2[row][col] = sum;
+	  }
+  }
+  return output2;
+}
 SDoublePlane convolve_separable(const SDoublePlane &input, const SDoublePlane &row_filter, const SDoublePlane &col_filter)
 {
   SDoublePlane output1(input.rows(), input.cols());
@@ -235,12 +289,24 @@ void test_colvolution()
 	filter[1][0]=1/8.0; filter[1][1]=1/4.0; filter[1][2]=1/8.0;
 	filter[2][0]=1/16.0; filter[2][1]=1/8.0; filter[2][2]=1/16.0;
 
-	SDoublePlane output = convolve_separable(img,row_filter,col_filter);
-	print(output);
+	print(convolve_separable(img,row_filter,col_filter));
 
-	SDoublePlane output2 = convolve_general(img,filter);
-	print(output2);
+	SDoublePlane img2(5,5);
+	img2[2][2] = 1;
+	  SDoublePlane row_filter2(1,3);
+	  for(int i=0;i<3;++i) row_filter2[0][i]=1/3.0;
+	  print(row_filter2);
+	  SDoublePlane col_filter2(3,1);
+	  for(int i=0;i<3;++i) col_filter2[i][0]=1/3.0;
+	  print(col_filter2);
+	  print(img2);
+	 print(convolve_separable(img2,row_filter2,col_filter2));
 
+	 SDoublePlane mean_filter(3,3);
+	   for(int i=0; i<3; i++)
+	     for(int j=0; j<3; j++)
+	       mean_filter[i][j] = 1/9.0;
+	 print(convolve_general(img2,mean_filter));
 }
 
 //
@@ -266,6 +332,12 @@ int main(int argc, char *argv[])
   SDoublePlane output_image = convolve_general(input_image, mean_filter);
   SImageIO::write_png_file("mean_filtered.png",output_image,output_image,output_image);
 
+  SDoublePlane row_filter(1,3);
+  for(int i=0;i<3;++i) row_filter[0][i]=1/3.0;
+  SDoublePlane col_filter(3,1);
+  for(int i=0;i<3;++i) col_filter[i][0]=1/3.0;
+  SDoublePlane output_image2 = convolve_separable(input_image, row_filter, col_filter);
+  SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
   test_colvolution();
 
 
