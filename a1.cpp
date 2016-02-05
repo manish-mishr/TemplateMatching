@@ -1,10 +1,12 @@
 #include <SImage.h>
 #include <SImageIO.h>
 #include <cmath>
+#include<math.h>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include<limits>
 #include <DrawText.h>
 
 using namespace std;
@@ -254,12 +256,58 @@ SDoublePlane convolve_general(const SDoublePlane &input, const SDoublePlane &fil
 // 
 SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
 {
-  SDoublePlane output(input.rows(), input.cols());
-
   // Implement a sobel gradient estimation filter with 1-d filters
-  
+  SDoublePlane col_filter1(3,1);
+  col_filter1[0][0] = 1/8.0; col_filter1[1][0] = 2/8.0; col_filter1[2][0] = 1/8.0;
+  SDoublePlane row_filter1(1,3);
+  row_filter1[0][0] = 1/8.0; row_filter1[0][1] = 0; row_filter1[0][2] = -1/8.0;
+
+  SDoublePlane col_filter2(3,1);
+  SDoublePlane row_filter2(1,3);
+  row_filter2[0][0]=1/8.0; row_filter2[0][1]=2/8.0; row_filter2[0][2]=1/8.0;
+  col_filter2[0][0]=1/8.0; col_filter2[1][0]=0; col_filter2[2][0]=-1/8.0;
+
+  SDoublePlane sobel_x = convolve_separable(input, row_filter1, col_filter1);
+  SImageIO::write_png_file("sobel_x.png",sobel_x,sobel_x,sobel_x);
+  SDoublePlane sobel_y = (convolve_separable(input, row_filter2, col_filter2));
+  SImageIO::write_png_file("sobel_y.png",sobel_y,sobel_y,sobel_y);
+
+  //now combine gradients
+  SDoublePlane output(input.rows(),input.cols());
+  for(int i=0;i<input.rows();++i)
+  {
+	  for(int j=0;j<input.cols();++j)
+	  {
+		  output[i][j] = (sobel_x[i][j]+sobel_y[i][j])/2;//sqrt( pow(sobel_x[i][j],2) + pow(sobel_y[i][j],2) );
+	  }
+  }
+  //print(sobel_x);
 
   return output;
+}
+
+double gamma(double in) { return in == 0 ? std::numeric_limits<double>::max() : 0 }
+
+SDoublePlane calculate_D(const SDoublePlane& img )
+{
+	SDoublePlane D(img.rows(),img.cols());
+	for(int i=0;i<img.rows();++i)
+	{
+		for(int j=0;j<img.cols();++j)
+		{
+			double d = std::numeric_limits<double>::max();
+			for(int a=0;a<img.rows();++a)
+			{
+				for(int b=0;b<img.cols();++b)
+				{
+					double	t = gamma(img[a][b]) + sqrt(pow((i-a),2)+pow((j-b),2));
+					d = t < d? t: d;
+				}
+			}
+			D[i][j] = d;
+		}
+	}
+	return D;
 }
 
 // Apply an edge detector to an image, returns the binary edge map
@@ -309,6 +357,47 @@ void test_colvolution()
 	 print(convolve_general(img2,mean_filter));
 }
 
+void binary(SDoublePlane& img)
+{
+	for(int i=0;i<img.rows();++i)
+	{
+		for(int j=0;j<img.cols();++j)
+		{
+			if(img[i][j]> 2 || img[i][j] < -2)
+				img[i][j] = 255;
+			else
+				img[i][j] = 0;
+		}
+	}
+}
+
+void test_sobel()
+{
+	  SDoublePlane cycle= SImageIO::read_png_file("music1.png");
+	  print(cycle);
+	  SDoublePlane filter(3,3); //Sx
+		filter[0][0]=-1; filter[0][1]=0; filter[0][2]=1;
+		filter[1][0]=-2; filter[1][1]=0; filter[1][2]=2;
+		filter[2][0]=-1; filter[2][1]=0; filter[2][2]=1;
+
+		SDoublePlane sobel = sobel_gradient_filter(cycle, true);
+		SImageIO::write_png_file("sobel_both.png",sobel,sobel,sobel);
+		cout<<"\n\nsobel\n\n";
+		SDoublePlane tmplate = sobel_gradient_filter(SImageIO::read_png_file("template1.png"),true);
+		SImageIO::write_png_file("template_sobel.png", tmplate,tmplate,tmplate);
+		print(sobel);
+
+		SDoublePlane row_filter(1,3), col_filter(3,1);
+			row_filter[0][0]=.25; row_filter[0][1]=.5; row_filter[0][2]=.25;
+			col_filter[0][0]=.25; col_filter[1][0]=.5; col_filter[2][0]=.25;
+
+		//make binary version of sobel
+		binary(sobel);
+		SImageIO::write_png_file("sobel_binary.png",sobel,sobel,sobel);
+		binary(tmplate);
+		SImageIO::write_png_file("template_binary.png",tmplate,tmplate,tmplate);
+}
+
 //
 // This main file just outputs a few test images. You'll want to change it to do 
 //  something more interesting!
@@ -336,9 +425,13 @@ int main(int argc, char *argv[])
   for(int i=0;i<3;++i) row_filter[0][i]=1/3.0;
   SDoublePlane col_filter(3,1);
   for(int i=0;i<3;++i) col_filter[i][0]=1/3.0;
-  SDoublePlane output_image2 = convolve_separable(input_image, row_filter, col_filter);
+  SDoublePlane output_image2 = convolve_separable_DP(input_image, row_filter, col_filter);
   SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
-  test_colvolution();
+  //test_colvolution();
+  test_sobel();
+  //SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
+//print(tmplate);
+
 
 
   // randomly generate some detected symbols -- you'll want to replace this
