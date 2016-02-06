@@ -278,15 +278,15 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
   {
 	  for(int j=0;j<input.cols();++j)
 	  {
-		  output[i][j] = (sobel_x[i][j]+sobel_y[i][j])/2;//sqrt( pow(sobel_x[i][j],2) + pow(sobel_y[i][j],2) );
+		  output[i][j] =(sobel_x[i][j]+sobel_y[i][j])/2; //sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );//
 	  }
   }
-  //print(sobel_x);
+  print(output);
 
   return output;
 }
 
-double gamma(double in) { return in == 0 ? std::numeric_limits<double>::max() : 0 }
+double gamma(double in) { return in == 0 ? std::numeric_limits<double>::max() : 0; }
 
 SDoublePlane calculate_D(const SDoublePlane& img )
 {
@@ -310,15 +310,30 @@ SDoublePlane calculate_D(const SDoublePlane& img )
 	return D;
 }
 
+
+void binary(SDoublePlane& img, int value = 255, int threshold = 2)
+{
+	for(int i=0;i<img.rows();++i)
+	{
+		for(int j=0;j<img.cols();++j)
+		{
+			if(abs(img[i][j])> threshold)
+				img[i][j] = value;
+			else
+				img[i][j] = 0;
+		}
+	}
+}
+
 // Apply an edge detector to an image, returns the binary edge map
 // 
 SDoublePlane find_edges(const SDoublePlane &input, double thresh=0)
 {
-  SDoublePlane output(input.rows(), input.cols());
+  SDoublePlane output = sobel_gradient_filter(input, true);
 
   // Implement an edge detector of your choice, e.g.
   // use your sobel gradient operator to compute the gradient magnitude and threshold
-  
+  binary(output);
   return output;
 }
 
@@ -357,24 +372,10 @@ void test_colvolution()
 	 print(convolve_general(img2,mean_filter));
 }
 
-void binary(SDoublePlane& img)
-{
-	for(int i=0;i<img.rows();++i)
-	{
-		for(int j=0;j<img.cols();++j)
-		{
-			if(img[i][j]> 2 || img[i][j] < -2)
-				img[i][j] = 255;
-			else
-				img[i][j] = 0;
-		}
-	}
-}
-
 void test_sobel()
 {
 	  SDoublePlane cycle= SImageIO::read_png_file("music1.png");
-	  print(cycle);
+	 // print(cycle);
 	  SDoublePlane filter(3,3); //Sx
 		filter[0][0]=-1; filter[0][1]=0; filter[0][2]=1;
 		filter[1][0]=-2; filter[1][1]=0; filter[1][2]=2;
@@ -385,7 +386,7 @@ void test_sobel()
 		cout<<"\n\nsobel\n\n";
 		SDoublePlane tmplate = sobel_gradient_filter(SImageIO::read_png_file("template1.png"),true);
 		SImageIO::write_png_file("template_sobel.png", tmplate,tmplate,tmplate);
-		print(sobel);
+		//print(sobel);
 
 		SDoublePlane row_filter(1,3), col_filter(3,1);
 			row_filter[0][0]=.25; row_filter[0][1]=.5; row_filter[0][2]=.25;
