@@ -7,6 +7,10 @@
 #include <fstream>
 #include <vector>
 #include<limits>
+#include<sstream>
+#include<queue>
+#include<vector>
+#include<map>
 #include <DrawText.h>
 
 using namespace std;
@@ -281,7 +285,7 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
 		  output[i][j] =(sobel_x[i][j]+sobel_y[i][j])/2; //sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );//
 	  }
   }
-  print(output);
+  //print(output);
 
   return output;
 }
@@ -333,8 +337,69 @@ SDoublePlane find_edges(const SDoublePlane &input, double thresh=0)
 
   // Implement an edge detector of your choice, e.g.
   // use your sobel gradient operator to compute the gradient magnitude and threshold
-  binary(output);
+  binary(output,1,2);
   return output;
+}
+
+SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmplate)
+{
+	SDoublePlane input_edge_map = find_edges(input);
+	SDoublePlane tmp_edge_map = find_edges(tmplate);
+	cout<<"Edge map found!\n";
+	SDoublePlane D = calculate_D(input_edge_map);
+	cout<<"D calculated!\n";
+	SDoublePlane f(input.rows(), input.cols());
+
+	for(int i = 0; i< input.rows(); ++i)
+	{
+		for(int j=0; j<input.cols();++j)
+		{
+			double sum = 0;
+			for(int k=0; k<tmplate.rows(); ++k)
+			{
+				for(int l=0;l<tmplate.cols();++l)
+				{
+					if(i+k>= input.rows() || j+l>=input.cols()) continue;
+					sum += tmp_edge_map[k][l] * D[i+k][j+l];
+				}
+			}
+			f[i][j] = sum;
+		}
+	}
+	cout<<"template matching done!\n";
+	print(f);
+
+	for(int t=0;t<10;++t)
+	{
+		 vector<DetectedSymbol> symbols;
+		for(int i = 0; i< input.rows(); ++i)
+		{
+			for(int j=0; j<input.cols();++j)
+			{
+				if(f[i][j]<=t)
+				{
+					  DetectedSymbol s;
+					  s.row = i;
+					  s.col = j;
+					  s.width = 20;
+					  s.height = 20;
+					  s.type = (Type) (rand() % 3);
+					  s.confidence = rand();
+					  s.pitch = (rand() % 7) + 'A';
+					  symbols.push_back(s);
+
+					  ostringstream convert;
+					  convert << t;
+					  string f1 = "detected_"+convert.str()+".txt";
+					  string f2 = "detected_"+convert.str()+".png";
+					  write_detection_txt(f1.c_str(), symbols);
+					  write_detection_image(f2.c_str(), symbols, input);
+					  cout<<"Done for t:"<<t<<endl;
+				}
+			}
+		}
+	}
+
 }
 
 void test_colvolution()
@@ -343,7 +408,7 @@ void test_colvolution()
 	for(int i=1; i<4;i++)
 		for (int j=1;j<4;j++)
 			img[i][j]=16;
-	print(img);
+	//print(img);
 
 	SDoublePlane row_filter(1,3), col_filter(3,1),filter(3,3);
 	row_filter[0][0]=.25; row_filter[0][1]=.5; row_filter[0][2]=.25;
@@ -352,7 +417,7 @@ void test_colvolution()
 	filter[1][0]=1/8.0; filter[1][1]=1/4.0; filter[1][2]=1/8.0;
 	filter[2][0]=1/16.0; filter[2][1]=1/8.0; filter[2][2]=1/16.0;
 
-	print(convolve_separable(img,row_filter,col_filter));
+	//print(convolve_separable(img,row_filter,col_filter));
 
 	SDoublePlane img2(5,5);
 	img2[2][2] = 1;
@@ -372,19 +437,70 @@ void test_colvolution()
 	 print(convolve_general(img2,mean_filter));
 }
 
+class pos
+{
+public:
+	int i,j,v;
+	bool operator < (const pos& r) const {return v<r.v;}
+};
+
+void detect_lines(const SDoublePlane& input)
+{
+	SDoublePlane edge_map = find_edges(input);
+	SDoublePlane vote(input.rows(), 50); // letting max value of s = 50
+	for(int i  =0; i<input.rows(); ++i)
+	{
+		for(int j = 0; j< input.cols(); ++j)
+		{
+			if(edge_map[i][j] == 1)
+			{
+				for( int s =5; s<50;++s)
+				{
+					for(int k = 0; k<5;++k)
+					{
+						if(i+k<0 || i+k>=input.rows()) continue;
+						++vote[i+k][s];
+					}
+				}
+			}
+		}
+	}
+	cout<<vote.cols()<<endl;
+	priority_queue<pos> max_votes;
+	for(int i  =0; i<vote.rows(); ++i)
+	{
+		for(int j = 0; j<vote.cols(); ++j)
+		{
+			pos p;
+			p.i=i;
+			p.j=j;
+			p.v=vote[i][j];
+			max_votes.push(p);
+		}
+	}
+	for(int i =0;i<50;++i)
+	{
+		pos p = max_votes.top();
+		cout<<p.i<<","<<p.j<<":"<<p.v<<endl;
+		max_votes.pop();
+	}
+}
+
 void test_sobel()
 {
-	  SDoublePlane cycle= SImageIO::read_png_file("music1.png");
+	  SDoublePlane music1= SImageIO::read_png_file("music1.png");
 	 // print(cycle);
 	  SDoublePlane filter(3,3); //Sx
 		filter[0][0]=-1; filter[0][1]=0; filter[0][2]=1;
 		filter[1][0]=-2; filter[1][1]=0; filter[1][2]=2;
 		filter[2][0]=-1; filter[2][1]=0; filter[2][2]=1;
 
-		SDoublePlane sobel = sobel_gradient_filter(cycle, true);
+		SDoublePlane sobel = sobel_gradient_filter(music1, true);
 		SImageIO::write_png_file("sobel_both.png",sobel,sobel,sobel);
-		cout<<"\n\nsobel\n\n";
-		SDoublePlane tmplate = sobel_gradient_filter(SImageIO::read_png_file("template1.png"),true);
+		//cout<<"\n\nsobel\n\n";
+		SDoublePlane tmplate_img = SImageIO::read_png_file("template1.png");
+		match_template(music1, tmplate_img);
+		SDoublePlane tmplate = sobel_gradient_filter(tmplate_img,true);
 		SImageIO::write_png_file("template_sobel.png", tmplate,tmplate,tmplate);
 		//print(sobel);
 
@@ -403,6 +519,31 @@ void test_sobel()
 // This main file just outputs a few test images. You'll want to change it to do 
 //  something more interesting!
 //
+void t(int input[2][2])
+{
+
+
+	priority_queue<pos> max_votes;
+	for(int i  =0; i<2; ++i)
+	{
+		for(int j = 0; j<2; ++j)
+		{
+//			map<int,vector<int> > m;
+//			m[vote[i][j]].push_back(i);
+//			m[vote[i][j]].push_back(j);
+//			max_votes.push(m);
+			pos p;
+			p.i=i;
+			p.j=j;
+			p.v=input[i][j];
+			max_votes.push(p);
+		}
+	}
+	for(int i =0;i<5;++i){
+		cout<<max_votes.top().v<<endl;
+		max_votes.pop();
+	}
+}
 int main(int argc, char *argv[])
 {
   if(!(argc == 2))
@@ -413,7 +554,7 @@ int main(int argc, char *argv[])
 
   string input_filename(argv[1]);
   SDoublePlane input_image= SImageIO::read_png_file(input_filename.c_str());
-  
+
   // test step 2 by applying mean filters to the input image
   SDoublePlane mean_filter(3,3);
   for(int i=0; i<3; i++)
@@ -429,10 +570,10 @@ int main(int argc, char *argv[])
   SDoublePlane output_image2 = convolve_separable_DP(input_image, row_filter, col_filter);
   SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
   //test_colvolution();
-  test_sobel();
+  //test_sobel();
   //SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
 //print(tmplate);
-
+detect_lines(input_image);
 
 
   // randomly generate some detected symbols -- you'll want to replace this
