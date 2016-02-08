@@ -11,6 +11,7 @@
 #include<queue>
 #include<vector>
 #include<map>
+#include<ctime>
 #include <DrawText.h>
 
 using namespace std;
@@ -292,7 +293,7 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
 
 double gamma(double in) { return in == 0 ? std::numeric_limits<double>::max() : 0; }
 
-void calculate_D2(const SDoublePlane& img)
+SDoublePlane calculate_D(const SDoublePlane& img)
 {
 	vector<pair<int,int> > points;
 
@@ -309,11 +310,11 @@ void calculate_D2(const SDoublePlane& img)
 	}
 
 	SDoublePlane D(img.rows(),img.cols());
-	for(int i = 0; i<x; ++i)
+	for(int i = 0; i<D.rows(); ++i)
 	{
-		for(int j=0; j< y; ++j)
+		for(int j=0; j< D.cols(); ++j)
 		{
-			f[i][j]=std::numeric_limits<int>::max();
+			D[i][j]=std::numeric_limits<int>::max();
 		}
 	}
 
@@ -325,7 +326,7 @@ void calculate_D2(const SDoublePlane& img)
 			for(int j=0; j<img.cols(); ++j)
 			{				
 				double d = sqrt(pow(i-point.first,2)+pow(j-point.second,2));
-				if(d<f[i][j])
+				if(d<D[i][j])
 				{
 					D[i][j]=d;
 				}
@@ -334,30 +335,10 @@ void calculate_D2(const SDoublePlane& img)
 	}
 	return D;
 }
-SDoublePlane calculate_D(const SDoublePlane& img )
-{
-	SDoublePlane D(img.rows(),img.cols());
-	for(int i=0;i<img.rows();++i)
-	{
-		for(int j=0;j<img.cols();++j)
-		{
-			double d = std::numeric_limits<double>::max();
-			for(int a=0;a<img.rows();++a)
-			{
-				for(int b=0;b<img.cols();++b)
-				{
-					double	t = gamma(img[a][b]) + sqrt(pow((i-a),2)+pow((j-b),2));
-					d = t < d? t: d;
-				}
-			}
-			D[i][j] = d;
-		}
-	}
-	return D;
-}
 
 
-void binary(SDoublePlane& img,vector<pair<int,int> >& edge_points, int value = 255, int threshold = 2)
+
+void binary(SDoublePlane& img, int value = 255, int threshold = 2)
 {
 	
 	for(int i=0;i<img.rows();++i)
@@ -367,7 +348,7 @@ void binary(SDoublePlane& img,vector<pair<int,int> >& edge_points, int value = 2
 			if(abs(img[i][j])> threshold)
 			{
 				img[i][j] = value;
-				edge_points.push_back(std::make_pair(i,j))
+				//edge_points.push_back(std::make_pair(i,j))
 			}
 			else
 				img[i][j] = 0;
@@ -396,16 +377,16 @@ SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmpla
 	cout<<"D calculated!\n";
 	SDoublePlane f(input.rows(), input.cols());
 
-	for(int i = 0; i< input.rows(); ++i)
+	for(int i = 0; i< D.rows(); ++i)
 	{
-		for(int j=0; j<input.cols();++j)
+		for(int j=0; j<D.cols();++j)
 		{
 			double sum = 0;
 			for(int k=0; k<tmplate.rows(); ++k)
 			{
 				for(int l=0;l<tmplate.cols();++l)
 				{
-					if(i+k>= input.rows() || j+l>=input.cols()) continue;
+					if(i+k>= D.rows() || j+l>=D.cols()) continue;
 					sum += tmp_edge_map[k][l] * D[i+k][j+l];
 				}
 			}
@@ -413,16 +394,17 @@ SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmpla
 		}
 	}
 	cout<<"template matching done!\n";
-	print(f);
+	//print(f);
 
-	for(int t=0;t<10;++t)
+	//for(int t=5;t<10;++t)
 	{
+		int threshold=10;
 		 vector<DetectedSymbol> symbols;
-		for(int i = 0; i< input.rows(); ++i)
+		for(int i = 0; i< f.rows(); ++i)
 		{
-			for(int j=0; j<input.cols();++j)
+			for(int j=0; j<f.cols();++j)
 			{
-				if(f[i][j]<=t)
+				if(f[i][j]<=threshold)
 				{
 					  DetectedSymbol s;
 					  s.row = i;
@@ -435,17 +417,17 @@ SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmpla
 					  symbols.push_back(s);
 
 					  ostringstream convert;
-					  convert << t;
-					  string f1 = "detected_"+convert.str()+".txt";
-					  string f2 = "detected_"+convert.str()+".png";
+					  convert << threshold;
+					  string f1 = "detected_2_"+convert.str()+".txt";
+					  string f2 = "detected_2_"+convert.str()+".png";
 					  write_detection_txt(f1.c_str(), symbols);
 					  write_detection_image(f2.c_str(), symbols, input);
-					  cout<<"Done for t:"<<t<<endl;
 				}
 			}
 		}
+		  //cout<<"Done for t:"<<threshold<<endl;
 	}
-
+	cout<<"Image written\n";
 }
 
 void test_colvolution()
@@ -490,6 +472,57 @@ public:
 	bool operator < (const pos& r) const {return v<r.v;}
 };
 
+void detect_lines(const SDoublePlane& input, int N_theta, int N_rad, int k)
+{
+	SDoublePlane edge_map = find_edges(input);
+	int u_c = edge_map.rows()/2;
+	int v_c = edge_map.cols()/2;
+	double r_max = sqrt(pow(u_c,2)+pow(v_c,2));
+	double delta_theta = 3.1416/N_theta;
+	double delta_rad = 2*r_max/N_rad;
+
+	SDoublePlane acc(N_theta, N_rad);
+
+	for(int i  =0; i<input.rows(); ++i)
+	{
+		for(int j = 0; j< input.cols(); ++j)
+		{
+			if(edge_map[i][j])
+			{
+				int x = i-u_c;
+				int y = j - v_c;
+
+				for(int i_theta=0; i_theta<N_theta;++i_theta)
+				{
+					double theta= i_theta*delta_theta;
+					double r = x*cos(theta)+y*sin(theta);
+					int i_rad = N_rad/2 + r/delta_rad;
+					++acc[i_theta][i_rad];
+				}
+			}
+		}
+	}
+	priority_queue<pos> max_votes;
+	for(int i  =0; i<acc.rows(); ++i)
+	{
+		for(int j = 0; j<acc.cols(); ++j)
+		{
+			pos p;
+			p.i=i;
+			p.j=j;
+			p.v=acc[i][j];
+			max_votes.push(p);
+		}
+	}
+	for(int i =0;i<10;++i)
+	{
+		pos p = max_votes.top();
+		cout<<p.i<<","<<p.j<<":"<<p.v<<endl;
+		max_votes.pop();
+	}
+
+}
+
 void detect_lines(const SDoublePlane& input)
 {
 	SDoublePlane edge_map = find_edges(input);
@@ -524,7 +557,7 @@ void detect_lines(const SDoublePlane& input)
 			max_votes.push(p);
 		}
 	}
-	for(int i =0;i<50;++i)
+	for(int i =0;i<10;++i)
 	{
 		pos p = max_votes.top();
 		cout<<p.i<<","<<p.j<<":"<<p.v<<endl;
@@ -532,20 +565,18 @@ void detect_lines(const SDoublePlane& input)
 	}
 }
 
-void test_sobel()
+void test_sobel(const SDoublePlane& img)
 {
-	  SDoublePlane music1= SImageIO::read_png_file("music1.png");
-	 // print(cycle);
-	  SDoublePlane filter(3,3); //Sx
+	  	 SDoublePlane filter(3,3); //Sx
 		filter[0][0]=-1; filter[0][1]=0; filter[0][2]=1;
 		filter[1][0]=-2; filter[1][1]=0; filter[1][2]=2;
 		filter[2][0]=-1; filter[2][1]=0; filter[2][2]=1;
 
-		SDoublePlane sobel = sobel_gradient_filter(music1, true);
+		SDoublePlane sobel = sobel_gradient_filter(img, true);
 		SImageIO::write_png_file("sobel_both.png",sobel,sobel,sobel);
 		//cout<<"\n\nsobel\n\n";
 		SDoublePlane tmplate_img = SImageIO::read_png_file("template1.png");
-		match_template(music1, tmplate_img);
+		match_template(img, tmplate_img);
 		SDoublePlane tmplate = sobel_gradient_filter(tmplate_img,true);
 		SImageIO::write_png_file("template_sobel.png", tmplate,tmplate,tmplate);
 		//print(sobel);
@@ -616,10 +647,10 @@ int main(int argc, char *argv[])
   SDoublePlane output_image2 = convolve_separable_DP(input_image, row_filter, col_filter);
   SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
   //test_colvolution();
-  //test_sobel();
+  test_sobel(input_image);
   //SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
 //print(tmplate);
-detect_lines(input_image);
+//detect_lines(input_image);
 
 
   // randomly generate some detected symbols -- you'll want to replace this
