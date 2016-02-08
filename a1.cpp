@@ -14,6 +14,8 @@
 #include<ctime>
 #include <DrawText.h>
 
+#define PI 3.14159265
+
 using namespace std;
 
 // The simple image class is called SDoublePlane, with each pixel represented as
@@ -283,12 +285,50 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
   {
 	  for(int j=0;j<input.cols();++j)
 	  {
-		  output[i][j] =(abs(sobel_x[i][j])+abs(sobel_y[i][j])); //sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );//
+		  output[i][j] =/*(abs(sobel_x[i][j])+abs(sobel_y[i][j])); */ sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );//
 	  }
   }
   //print(output);
 
   return output;
+}
+
+void sobel_gradient_filter(const SDoublePlane &input, SDoublePlane &magnitude, SDoublePlane &direction  )
+{
+  // Implement a sobel gradient estimation filter with 1-d filters
+  SDoublePlane col_filter1(3,1);
+  col_filter1[0][0] = 1/8.0; col_filter1[1][0] = 2/8.0; col_filter1[2][0] = 1/8.0;
+  SDoublePlane row_filter1(1,3);
+  row_filter1[0][0] = 1/8.0; row_filter1[0][1] = 0; row_filter1[0][2] = -1/8.0;
+
+  SDoublePlane col_filter2(3,1);
+  SDoublePlane row_filter2(1,3);
+  row_filter2[0][0]=1/8.0; row_filter2[0][1]=2/8.0; row_filter2[0][2]=1/8.0;
+  col_filter2[0][0]=1/8.0; col_filter2[1][0]=0; col_filter2[2][0]=-1/8.0;
+
+  SDoublePlane sobel_x = convolve_separable(input, row_filter1, col_filter1);
+  SImageIO::write_png_file("sobel_x.png",sobel_x,sobel_x,sobel_x);
+  SDoublePlane sobel_y = (convolve_separable(input, row_filter2, col_filter2));
+  SImageIO::write_png_file("sobel_y.png",sobel_y,sobel_y,sobel_y);
+
+  //now combine gradients
+  for(int i=0;i<input.rows();++i)
+  {
+	  for(int j=0;j<input.cols();++j)
+	  {
+		  magnitude[i][j] = sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );
+		  double angle = atan(sobel_y[i][j] / sobel_x[i][j]) * 180 / PI;
+		  if( (angle>=0 && angle<=22.5) ||  (angle>=157.5 && angle <= 180))
+			  direction[i][j] = 0;
+		  else if( (angle>=22.5 && angle<=67.5))
+		  			  direction[i][j] = 45;
+		  else if( (angle>=67.5 && angle<=112.5) )
+		  			  direction[i][j] = 90;
+		  else
+			  direction[i][j] = 135;
+	  }
+  }
+
 }
 
 double gamma(double in) { return in == 0 ? std::numeric_limits<double>::max() : 0; }
@@ -354,6 +394,74 @@ void binary(SDoublePlane& img, int value = 255, int threshold = 2)
 				img[i][j] = 0;
 		}
 	}
+}
+
+
+void NMS(const SDoublePlane &magnitude, SDoublePlane &direction  )
+{
+	for(int i=0; i<magnitude.rows(); ++i)
+	{
+		for(int j=0; j<magnitude.cols(); ++j)
+		{
+			if( direction[i][j] == 0)
+			{
+				if ( (i-1>=0 && magnitude[i][j] < magnitude[i-1][j] ) ||
+					  (i+1<magnitude.rows() && magnitude[i][j] < magnitude[i+1][j]))
+				{
+					magnitude[i][j]=0;
+				}
+			}
+			else if( direction[i][j] == 90)
+			{
+				if ( (j-1>=0 && magnitude[i][j] < magnitude[i][j-1] ) ||
+					  (j+1<magnitude.cols() && magnitude[i][j] < magnitude[i][j+1]))
+				{
+					magnitude[i][j]=0;
+				}
+			}
+			else if( direction[i][j] == 45)
+			{
+				if ( (i-1>=0 && j-1>=0 && magnitude[i][j] < magnitude[i-1][j-1] ) ||
+					  (i+1<=magnitude.rows()  && j+1<magnitude.cols() && magnitude[i][j] < magnitude[i+1][j+1]))
+				{
+					magnitude[i][j]=0;
+				}
+			}
+			else if( direction[i][j] == 135)
+			{
+				if ( (i-1>=0 && j+1<magnitude.cols() && magnitude[i][j] < magnitude[i-1][j+1] ) ||
+					  (i+1<=magnitude.rows()  && j-1>=0 && magnitude[i][j] < magnitude[i+1][j-1]))
+				{
+					magnitude[i][j]=0;
+				}
+			}
+		}
+	}
+}
+
+//https://en.wikipedia.org/wiki/Canny_edge_detector
+SDoublePlane edge_detector(const SDoublePlane &input)
+{
+	//step 1: smoothe
+	SDoublePlane filter(5,5);
+	filter[0][0] = 2/159.0; filter[0][1] = 4/159.0; filter[0][2] = 5/159.0; filter[0][3] = 4/159.0; filter[0][4] = 2/159.0;
+	filter[1][0] = 4/159.0; filter[1][1] = 9/159.0; filter[1][2] = 12/159.0; filter[1][3] = 9/159.0; filter[1][4] = 4/159.0;
+	filter[2][0] = 5/159.0; filter[2][1] = 12/159.0; filter[2][2] = 15/159.0; filter[2][3] = 12/159.0; filter[2][4] = 5/159.0;
+	filter[3][0] = 4/159.0; filter[3][1] = 9/159.0; filter[3][2] = 12/159.0; filter[3][3] = 9/159.0; filter[3][4] = 4/159.0;
+	filter[4][0] = 2/159.0; filter[4][1] = 4/159.0; filter[4][2] = 5/159.0; filter[4][3] = 4/159.0; filter[4][4] = 2/159.0;
+
+	SDoublePlane blured  = convolve_general(input, filter);
+
+	// step2: find gradient
+	SDoublePlane grad_magnitude(input.rows(),input.cols()), grad_direction(input.rows(),input.cols());
+	sobel_gradient_filter(input, grad_magnitude, grad_direction);
+
+//	//step3: nms
+	NMS(grad_magnitude, grad_direction);
+
+//	binary(grad_magnitude);
+//
+//	 SImageIO::write_png_file("can.png",grad_magnitude,grad_magnitude,grad_magnitude);
 }
 
 // Apply an edge detector to an image, returns the binary edge map
@@ -607,7 +715,8 @@ int main(int argc, char *argv[])
   SDoublePlane output_image2 = convolve_separable_DP(input_image, row_filter, col_filter);
   SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
   //test_colvolution();
-  test_sobel(output_image);
+  //test_sobel(output_image);
+  edge_detector(input_image);
   //SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
 //print(tmplate);
 //detect_lines(input_image);
