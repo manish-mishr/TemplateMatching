@@ -292,6 +292,48 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
 
 double gamma(double in) { return in == 0 ? std::numeric_limits<double>::max() : 0; }
 
+void calculate_D2(const SDoublePlane& img)
+{
+	vector<pair<int,int> > points;
+
+	
+	for(int i = 0; i<img.rows(); ++i)
+	{
+		for(int j=0; j< img.cols(); ++j)
+		{
+			if(img[i][j]==1)
+			{
+				points.push_back(std::make_pair(i,j));
+			}
+		}
+	}
+
+	SDoublePlane D(img.rows(),img.cols());
+	for(int i = 0; i<x; ++i)
+	{
+		for(int j=0; j< y; ++j)
+		{
+			f[i][j]=std::numeric_limits<int>::max();
+		}
+	}
+
+	for(int p=0; p<points.size(); ++p)
+	{
+		const pair<int,int>& point = points[p];
+		for(int i = 0; i<img.rows(); ++i)
+		{
+			for(int j=0; j<img.cols(); ++j)
+			{				
+				double d = sqrt(pow(i-point.first,2)+pow(j-point.second,2));
+				if(d<f[i][j])
+				{
+					D[i][j]=d;
+				}
+			}
+		}
+	}
+	return D;
+}
 SDoublePlane calculate_D(const SDoublePlane& img )
 {
 	SDoublePlane D(img.rows(),img.cols());
@@ -315,14 +357,18 @@ SDoublePlane calculate_D(const SDoublePlane& img )
 }
 
 
-void binary(SDoublePlane& img, int value = 255, int threshold = 2)
+void binary(SDoublePlane& img,vector<pair<int,int> >& edge_points, int value = 255, int threshold = 2)
 {
+	
 	for(int i=0;i<img.rows();++i)
 	{
 		for(int j=0;j<img.cols();++j)
 		{
 			if(abs(img[i][j])> threshold)
+			{
 				img[i][j] = value;
+				edge_points.push_back(std::make_pair(i,j))
+			}
 			else
 				img[i][j] = 0;
 		}
