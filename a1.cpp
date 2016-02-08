@@ -302,7 +302,7 @@ SDoublePlane calculate_D(const SDoublePlane& img)
 	{
 		for(int j=0; j< img.cols(); ++j)
 		{
-			if(img[i][j]==1)
+			if(img[i][j])
 			{
 				points.push_back(std::make_pair(i,j));
 			}
@@ -566,60 +566,21 @@ void detect_lines(const SDoublePlane& input)
 
 void test_sobel(const SDoublePlane& img)
 {
-	  	 SDoublePlane filter(3,3); //Sx
-		filter[0][0]=-1; filter[0][1]=0; filter[0][2]=1;
-		filter[1][0]=-2; filter[1][1]=0; filter[1][2]=2;
-		filter[2][0]=-1; filter[2][1]=0; filter[2][2]=1;
-
-		SDoublePlane sobel = sobel_gradient_filter(img, true);
-		SImageIO::write_png_file("sobel_both.png",sobel,sobel,sobel);
-		//cout<<"\n\nsobel\n\n";
 		SDoublePlane tmplate_img = SImageIO::read_png_file("template1.png");
+		SDoublePlane i= sobel_gradient_filter(img, true);
+		binary(i);
+		SImageIO::write_png_file("edge_map.png",i,i,i);
+		SDoublePlane t = sobel_gradient_filter(tmplate_img, true);
+		binary(t);
+		SImageIO::write_png_file("tmp_edge_map.png",t,t,t);
 		match_template(img, tmplate_img);
-		SDoublePlane tmplate = sobel_gradient_filter(tmplate_img,true);
-		SImageIO::write_png_file("template_sobel.png", tmplate,tmplate,tmplate);
-		//print(sobel);
-
-		SDoublePlane row_filter(1,3), col_filter(3,1);
-			row_filter[0][0]=.25; row_filter[0][1]=.5; row_filter[0][2]=.25;
-			col_filter[0][0]=.25; col_filter[1][0]=.5; col_filter[2][0]=.25;
-
-		//make binary version of sobel
-		binary(sobel);
-		SImageIO::write_png_file("sobel_binary.png",sobel,sobel,sobel);
-		binary(tmplate);
-		SImageIO::write_png_file("template_binary.png",tmplate,tmplate,tmplate);
 }
 
 //
 // This main file just outputs a few test images. You'll want to change it to do 
 //  something more interesting!
 //
-void t(int input[2][2])
-{
 
-
-	priority_queue<pos> max_votes;
-	for(int i  =0; i<2; ++i)
-	{
-		for(int j = 0; j<2; ++j)
-		{
-//			map<int,vector<int> > m;
-//			m[vote[i][j]].push_back(i);
-//			m[vote[i][j]].push_back(j);
-//			max_votes.push(m);
-			pos p;
-			p.i=i;
-			p.j=j;
-			p.v=input[i][j];
-			max_votes.push(p);
-		}
-	}
-	for(int i =0;i<5;++i){
-		cout<<max_votes.top().v<<endl;
-		max_votes.pop();
-	}
-}
 int main(int argc, char *argv[])
 {
   if(!(argc == 2))
@@ -646,7 +607,7 @@ int main(int argc, char *argv[])
   SDoublePlane output_image2 = convolve_separable_DP(input_image, row_filter, col_filter);
   SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
   //test_colvolution();
-  test_sobel(input_image);
+  test_sobel(output_image);
   //SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
 //print(tmplate);
 //detect_lines(input_image);
