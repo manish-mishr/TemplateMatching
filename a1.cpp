@@ -283,7 +283,7 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
   {
 	  for(int j=0;j<input.cols();++j)
 	  {
-		  output[i][j] =(sobel_x[i][j]+sobel_y[i][j])/2; //sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );//
+		  output[i][j] =(abs(sobel_x[i][j])+abs(sobel_y[i][j])); //sqrt( pow(sobel_x[i][j] , 2) + pow(sobel_y[i][j] , 2) );//
 	  }
   }
   //print(output);
@@ -396,10 +396,9 @@ SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmpla
 	cout<<"template matching done!\n";
 	//print(f);
 
-	//for(int t=5;t<10;++t)
+	for(int threshold=3;threshold<6;++threshold)
 	{
-		int threshold=10;
-		 vector<DetectedSymbol> symbols;
+		vector<DetectedSymbol> symbols;
 		for(int i = 0; i< f.rows(); ++i)
 		{
 			for(int j=0; j<f.cols();++j)
@@ -418,14 +417,14 @@ SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmpla
 
 					  ostringstream convert;
 					  convert << threshold;
-					  string f1 = "detected_2_"+convert.str()+".txt";
-					  string f2 = "detected_2_"+convert.str()+".png";
+					  string f1 = "detected_"+convert.str()+".txt";
+					  string f2 = "detected_"+convert.str()+".png";
 					  write_detection_txt(f1.c_str(), symbols);
 					  write_detection_image(f2.c_str(), symbols, input);
 				}
 			}
 		}
-		  //cout<<"Done for t:"<<threshold<<endl;
+		 cout<<"Done for t:"<<threshold<<endl;
 	}
 	cout<<"Image written\n";
 }
