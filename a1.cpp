@@ -397,7 +397,7 @@ void binary(SDoublePlane& img, int value = 255, int threshold = 2)
 }
 
 
-void NMS(const SDoublePlane &magnitude, SDoublePlane &direction  )
+void NMS(SDoublePlane &magnitude, const SDoublePlane &direction  )
 {
 	for(int i=0; i<magnitude.rows(); ++i)
 	{
