@@ -422,7 +422,7 @@ void NMS(SDoublePlane &magnitude, const SDoublePlane &direction  )
 			else if( direction[i][j] == 45)
 			{
 				if ( (i-1>=0 && j-1>=0 && magnitude[i][j] < magnitude[i-1][j-1] ) ||
-					  (i+1<=magnitude.rows()  && j+1<magnitude.cols() && magnitude[i][j] < magnitude[i+1][j+1]))
+					  (i+1<magnitude.rows()  && j+1<magnitude.cols() && magnitude[i][j] < magnitude[i+1][j+1]))
 				{
 					magnitude[i][j]=0;
 				}
@@ -430,7 +430,7 @@ void NMS(SDoublePlane &magnitude, const SDoublePlane &direction  )
 			else if( direction[i][j] == 135)
 			{
 				if ( (i-1>=0 && j+1<magnitude.cols() && magnitude[i][j] < magnitude[i-1][j+1] ) ||
-					  (i+1<=magnitude.rows()  && j-1>=0 && magnitude[i][j] < magnitude[i+1][j-1]))
+					  (i+1<magnitude.rows()  && j-1>=0 && magnitude[i][j] < magnitude[i+1][j-1]))
 				{
 					magnitude[i][j]=0;
 				}
