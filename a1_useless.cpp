@@ -1,17 +1,25 @@
 #include <SImage.h>
 #include <SImageIO.h>
 #include <cmath>
-#include<math.h>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <vector>
+<<<<<<< HEAD
+#include <limits>
+#include <sstream>
+#include <queue>
+#include <vector>
+#include <map>
+#include <set>
+=======
 #include<limits>
 #include<sstream>
 #include<queue>
 #include<vector>
 #include<map>
 #include<ctime>
+>>>>>>> 7dc68709f33e8a6eb3bb10d29881884450ff4005
 #include <DrawText.h>
 
 using namespace std;
@@ -36,6 +44,17 @@ using namespace std;
 
 // Draws a rectangle on an image plane, using the specified gray level value and line width.
 //
+
+
+
+class pos
+{
+public:
+	int i,j,v;
+	bool operator < (const pos& r) const {return v<r.v;}
+	bool operator > (const pos& r) const {return v>r.v;}
+};
+
 void overlay_rectangle(SDoublePlane &input, int _top, int _left, int _bottom, int _right, double graylevel, int width)
 {
   for(int w=-width/2; w<=width/2; w++) {
@@ -337,8 +356,12 @@ SDoublePlane calculate_D(const SDoublePlane& img)
 }
 
 
+<<<<<<< HEAD
+void binary(SDoublePlane& img, int value = 255, int threshold = 100)
+=======
 
 void binary(SDoublePlane& img, int value = 255, int threshold = 2)
+>>>>>>> 7dc68709f33e8a6eb3bb10d29881884450ff4005
 {
 	
 	for(int i=0;i<img.rows();++i)
@@ -355,6 +378,9 @@ void binary(SDoublePlane& img, int value = 255, int threshold = 2)
 		}
 	}
 }
+
+
+
 
 // Apply an edge detector to an image, returns the binary edge map
 // 
@@ -429,6 +455,172 @@ SDoublePlane match_template(const SDoublePlane& input, const SDoublePlane& tmpla
 	cout<<"Image written\n";
 }
 
+
+void hamming_distance(SDoublePlane &input,  SDoublePlane &tmplate){
+	SDoublePlane input_edge_map = input;
+	SDoublePlane tmp_edge_map = tmplate;
+
+	binary(input_edge_map,1,160);
+
+	
+	binary(tmp_edge_map,1,160);
+	cout<<"Edge map found!\n";
+	
+	cout<<"D calculated!\n";
+	SDoublePlane f(input.rows(), input.cols());
+
+	for(int i=0;i<input.rows();i++)
+		for(int j=0; j<input.cols();j++)
+			f[i][j] = 0;
+
+	//cout << "tmplate rows:  " << input.rows() << "tmplate cols:   " << input.cols() << endl;
+
+	//vector<vector<unsigned int> > convolution_matrix(tmp_edge_map.rows(),vector<unsigned int>(tmp_edge_map.cols()));
+
+	int dummy;
+	int tmp_row = tmp_edge_map.rows();
+	int tmp_col = tmp_edge_map.cols();
+	tmp_row = (tmp_row )/2;
+	tmp_col = (tmp_col)/ 2;
+	int value1 = tmp_edge_map.rows()%2 == 0 ?1:0;
+	int value2 =  tmp_edge_map.cols()%2 == 0 ?1:0;
+
+	int min_dist, max_dist;
+	min_dist = 99999999;
+	max_dist = 0;
+	double dist;
+
+	tmp_row += value1;
+	tmp_col += value2;
+
+	cout << "tmp_row:  " << tmp_row << "tmp_col: " << tmp_col << endl;
+
+	for(int i = tmp_row; i< (input.rows()-tmp_row); ++i)
+	{
+		for(int j=tmp_col; j<(input.cols()-tmp_col);++j)
+		{
+			double sum = 0;
+			//if (input_edge_map[i][j] == 0){
+			
+			for(int k= -(tmp_row); k<tmp_row; ++k)
+			{
+				for(int l=-(tmp_col);l<tmp_col;++l)
+				{
+
+				//	cout << "i: " << i << "  j:  " << j <<"  k:  " << k << "  l: " << l << endl;
+					if(i+k >= input.rows() || i+k < 0 || j+l>=input.cols() || j+l < 0) continue;
+					
+						sum += ((unsigned int)tmp_edge_map[k+tmp_row][l+tmp_col] ^ (unsigned int)input_edge_map[i+k][j+l]);
+
+				}
+			}
+				f[i][j] = sum;
+				if(f[i][j] < min_dist)
+					min_dist = f[i][j];
+				if(f[i][j] > max_dist)
+					max_dist = f[i][j];
+			//}
+			
+		}
+	}
+
+	dist = max_dist - min_dist;
+	if (dist > 0)
+		dist *= 0.3;
+	
+	priority_queue<pos,vector<pos>,greater<std::vector<pos>::value_type> > match_queue;
+
+	
+
+	for(int i=0; i<input_edge_map.rows();i++){
+		for(int j=0; j<input_edge_map.cols();j++){
+			if(f[i][j]>0){
+				pos temp;
+				temp.i = i;
+				temp.j = j;
+				temp.v = f[i][j];
+				match_queue.push(temp);
+			}
+		}
+	}
+
+	set<int> set_col,set_row;
+	set<int>:: iterator it1_row,it1_col,it2_row,it2_col;
+	vector<DetectedSymbol> symbols;
+
+	int count = 0;
+	
+	while(!match_queue.empty()){
+		pos temp = match_queue.top();
+		
+		bool flag1 = true;
+		
+		if(temp.v > dist) break;
+		
+		it1_row = set_row.begin();
+		it2_row = set_row.begin();
+		it1_col = set_col.begin();
+		it2_col = set_col.begin();
+
+		for(int i =0; i <tmp_row;i++){
+			
+			it1_row =set_row.find(temp.i - i);
+			it2_row= set_row.find(temp.i + i);
+			if(it1_row != set_row.end() || it2_row != set_row.end()){
+				for(int j=0; j < tmp_col;j++){
+					it1_col = set_col.find(temp.j - j );
+					it2_col = set_col.find(temp.j + j);
+					if(it1_col != set_col.end() || it2_col != set_col.end()){
+						flag1 = false;
+				 		break;
+				 		}
+				 	}
+				 if(flag1 == false)
+				 	break;
+				}
+			}
+		
+
+		if (flag1 ){
+			DetectedSymbol obj;
+			obj.row = temp.i - tmp_row;
+			obj.col = temp.j - tmp_col;
+			obj.width = 2*tmp_col + 5;
+			obj.height = 2*tmp_row + 5;
+			obj.type = (Type) (rand() % 3);
+			obj.confidence = temp.v*0.01;
+			obj.pitch = (rand() % 7) + 'A';
+			symbols.push_back(obj);
+			set_row.insert(temp.i);
+			set_col.insert(temp.j);
+		}
+
+		match_queue.pop();
+
+	}
+
+	ofstream myfile("hamming_file.txt");
+	vector<DetectedSymbol>::iterator it = symbols.begin();
+	while(it!= symbols.end()){
+			myfile <<"i:  " << (*it).row <<"  j:  " << (*it).col <<"  value:  "  << (*it).confidence << endl;
+			it++;
+		}
+
+
+	myfile.close();
+
+
+	cout<<"template matching done!\n";
+	print(f);
+
+	
+	string f1 = "manish_.txt";
+	string f2 = "manish_.png";
+	write_detection_txt(f1.c_str(), symbols);
+	write_detection_image(f2.c_str(), symbols, input);
+					  //cout<<"Done for t:"<<t<<endl;
+}
+
 void test_colvolution()
 {
 	SDoublePlane img(5,5);
@@ -450,26 +642,21 @@ void test_colvolution()
 	img2[2][2] = 1;
 	  SDoublePlane row_filter2(1,3);
 	  for(int i=0;i<3;++i) row_filter2[0][i]=1/3.0;
-	  print(row_filter2);
+	  //print(row_filter2);
 	  SDoublePlane col_filter2(3,1);
 	  for(int i=0;i<3;++i) col_filter2[i][0]=1/3.0;
-	  print(col_filter2);
-	  print(img2);
-	 print(convolve_separable(img2,row_filter2,col_filter2));
+	  //print(col_filter2);
+	  //print(img2);
+	 //print(convolve_separable(img2,row_filter2,col_filter2));
 
 	 SDoublePlane mean_filter(3,3);
 	   for(int i=0; i<3; i++)
 	     for(int j=0; j<3; j++)
 	       mean_filter[i][j] = 1/9.0;
-	 print(convolve_general(img2,mean_filter));
+	 //print(convolve_general(img2,mean_filter));
 }
 
-class pos
-{
-public:
-	int i,j,v;
-	bool operator < (const pos& r) const {return v<r.v;}
-};
+
 
 void detect_lines(const SDoublePlane& input, int N_theta, int N_rad, int k)
 {
@@ -534,10 +721,10 @@ void detect_lines(const SDoublePlane& input)
 			{
 				for( int s =5; s<50;++s)
 				{
-					for(int k = 0; k<5;++k)
+					for(int k = -2; k<3;++k)
 					{
-						if(i+k<0 || i+k>=input.rows()) continue;
-						++vote[i+k][s];
+						if(i+k*s<0 || i+k*s>=input.rows()) continue;
+						++vote[i+k*s][s];
 					}
 				}
 			}
@@ -556,15 +743,30 @@ void detect_lines(const SDoublePlane& input)
 			max_votes.push(p);
 		}
 	}
+<<<<<<< HEAD
+
+	
+
+=======
 	for(int i =0;i<10;++i)
+>>>>>>> 7dc68709f33e8a6eb3bb10d29881884450ff4005
 	{
 		pos p = max_votes.top();
 		cout<<p.i<<","<<p.j<<":"<<p.v<<endl;
 		max_votes.pop();
 	}
+
+	int dummy;
+	cout << "checking values for sobel: " << endl;
+	cin >> dummy;
 }
 
+<<<<<<< HEAD
+
+void test_sobel()
+=======
 void test_sobel(const SDoublePlane& img)
+>>>>>>> 7dc68709f33e8a6eb3bb10d29881884450ff4005
 {
 		SDoublePlane tmplate_img = SImageIO::read_png_file("template1.png");
 		SDoublePlane i= sobel_gradient_filter(img, true);
@@ -607,12 +809,21 @@ int main(int argc, char *argv[])
   SDoublePlane output_image2 = convolve_separable_DP(input_image, row_filter, col_filter);
   SImageIO::write_png_file("mean_filtered2.png",output_image2,output_image2,output_image2);
   //test_colvolution();
+<<<<<<< HEAD
+  //test_sobel();
+  SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
+  print(tmplate);
+  detect_lines(input_image);
+=======
   test_sobel(output_image);
   //SDoublePlane tmplate = SImageIO::read_png_file("template2.png");
 //print(tmplate);
 //detect_lines(input_image);
 
+>>>>>>> 7dc68709f33e8a6eb3bb10d29881884450ff4005
 
+	tmplate = SImageIO::read_png_file("template2.png");
+	hamming_distance(input_image,tmplate);
   // randomly generate some detected symbols -- you'll want to replace this
   //  with your symbol detection code obviously!
   vector<DetectedSymbol> symbols;

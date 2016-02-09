@@ -1,0 +1,10 @@
+258 344 20 20 quarter_rest _ 2.00681e+09
+352 230 20 20 filled_note C 1.04674e+09
+194 1192 20 20 eighth_rest _ 4.46341e+08
+234 479 20 20 eighth_rest _ 5.24688e+08
+195 956 20 20 filled_note E 7.26371e+08
+228 1304 20 20 eighth_rest _ 1.68209e+09
+220 1255 20 20 quarter_rest _ 1.54835e+09
+170 373 20 20 quarter_rest _ 4.52868e+08
+72 1363 20 20 quarter_rest _ 8.22263e+08
+37 854 20 20 quarter_rest _ 1.10613e+08
